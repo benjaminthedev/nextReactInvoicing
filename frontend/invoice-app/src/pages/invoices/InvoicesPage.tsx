@@ -1,5 +1,4 @@
-// src/pages/invoices/InvoicesPage.tsx
-import React from 'react'
+import { NewInvoiceDialog } from '@/components/invoices/NewInvoiceDialog'
 import { Plus, Search, Download } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -62,9 +61,7 @@ const InvoicesPage = () => {
     <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Invoices</h1>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> New Invoice
-        </Button>
+          <NewInvoiceDialog />
       </div>
 
       <div className="flex justify-between items-center gap-4">

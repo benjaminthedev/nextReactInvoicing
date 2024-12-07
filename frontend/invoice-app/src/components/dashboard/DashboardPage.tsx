@@ -1,4 +1,3 @@
-
 import { PoundSterling, Clock, TrendingDown, TrendingUp } from 'lucide-react'
 
 const DashboardPage = () => {
