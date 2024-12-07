@@ -1,4 +1,3 @@
-// src/pages/invoices/components/NewInvoiceForm.tsx
 import React from 'react'
 import { Plus, X } from 'lucide-react'
 
