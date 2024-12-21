@@ -13,6 +13,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { InvoicePDF } from './InvoicePDF'
 import { invoiceSchema, type InvoiceFormData } from './types'
 
+// bendordoigne
+// I4fHzbFMzwTlAmpe
+
+/*
+
+
+mongodb+srv://bendordoigne:I4fHzbFMzwTlAmpe@cluster0.ufxop.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+
+*/ 
+
+
 const VAT_RATES = [
   { label: 'Standard Rate (20%)', value: 20 },
   { label: 'Reduced Rate (5%)', value: 5 },
