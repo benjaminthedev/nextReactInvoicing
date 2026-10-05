@@ -1,91 +1,83 @@
-import { useState, useEffect } from 'react'
-import axios from 'axios'
+import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { useAppStore } from '@/lib/store'
+import { CustomerFormDialog } from './CustomerFormDialog'
+import type { Customer } from './types'
 
-interface Customer {
-  _id: string
-  name: string
-  email: string
-  vatNumber?: string
-  address?: {
-    street?: string
-    city?: string
-    postcode?: string
-    country?: string
-  }
-  phone?: string
-  notes?: string
+function customerAddress(customer: Customer) {
+  const { street, city, postcode } = customer.address
+  return [street, city, postcode].filter(Boolean).join(', ')
 }
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [loading, setLoading] = useState(true)
+  const { customers, addCustomer, updateCustomer } = useAppStore()
   const [searchTerm, setSearchTerm] = useState('')
 
-  useEffect(() => {
-    fetchCustomers()
-  }, [])
-
-  const fetchCustomers = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/api/customers')
-      setCustomers(response.data)
-    } catch (error) {
-      console.error('Error fetching customers:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const filteredCustomers = customers.filter(customer => 
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredCustomers = customers.filter((customer) => {
+    const haystack = `${customer.name} ${customer.email}`.toLowerCase()
+    return haystack.includes(searchTerm.trim().toLowerCase())
+  })
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Customers</h1>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> Add Customer
-        </Button>
-      </div>
-
-      <div className="flex space-x-4">
-        <Input
-          placeholder="Search customers..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
+        <CustomerFormDialog
+          onSubmit={addCustomer}
+          trigger={
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> Add Customer
+            </Button>
+          }
         />
       </div>
 
-      {loading ? (
-        <div>Loading...</div>
+      <Input
+        placeholder="Search customers..."
+        value={searchTerm}
+        onChange={(event) => setSearchTerm(event.target.value)}
+        className="max-w-sm"
+        aria-label="Search customers"
+      />
+
+      {customers.length === 0 ? (
+        <p className="text-sm text-gray-500">No customers yet. Add one to use them on invoices.</p>
+      ) : filteredCustomers.length === 0 ? (
+        <p className="text-sm text-gray-500">No customers match your search.</p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredCustomers.map((customer) => (
-            <Card key={customer._id}>
-              <CardContent className="p-4">
-                <h3 className="font-semibold text-lg">{customer.name}</h3>
-                <p className="text-sm text-gray-600">{customer.email}</p>
-                {customer.phone && (
-                  <p className="text-sm text-gray-600">{customer.phone}</p>
-                )}
-                {customer.vatNumber && (
-                  <p className="text-sm text-gray-600">VAT: {customer.vatNumber}</p>
-                )}
-                {customer.address && (
-                  <p className="text-sm text-gray-600">
-                    {customer.address.street}, {customer.address.city}, {customer.address.postcode}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+          {filteredCustomers.map((customer) => {
+            const address = customerAddress(customer)
+            return (
+              <Card key={customer.id}>
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold text-lg">{customer.name}</h3>
+                      <p className="text-sm text-gray-600">{customer.email}</p>
+                    </div>
+                    <CustomerFormDialog
+                      customer={customer}
+                      onSubmit={(data) => updateCustomer(customer.id, data)}
+                      trigger={<Button variant="outline" size="sm">Edit</Button>}
+                    />
+                  </div>
+                  {customer.phone && (
+                    <p className="text-sm text-gray-600">{customer.phone}</p>
+                  )}
+                  {customer.vatNumber && (
+                    <p className="text-sm text-gray-600">VAT: {customer.vatNumber}</p>
+                  )}
+                  {address && (
+                    <p className="text-sm text-gray-600">{address}</p>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       )}
     </div>

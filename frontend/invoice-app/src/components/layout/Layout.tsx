@@ -7,28 +7,49 @@ interface LayoutProps {
   children: ReactNode
 }
 
+const clerkEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY)
+
+const navigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Invoices', href: '/invoices', icon: FileText },
+  { name: 'Customers', href: '/customers', icon: Users },
+  { name: 'Settings', href: '/settings', icon: Settings },
+]
+
 const Layout = ({ children }: LayoutProps) => {
+  if (!clerkEnabled) {
+    return <LayoutView>{children}</LayoutView>
+  }
+
+  return <ClerkLayout>{children}</ClerkLayout>
+}
+
+const ClerkLayout = ({ children }: LayoutProps) => {
   const { signOut } = useClerk()
   const navigate = useNavigate()
-
-  const navigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Invoices', href: '/invoices', icon: FileText },
-    { name: 'Customers', href: '/customers', icon: Users },
-    { name: 'Settings', href: '/settings', icon: Settings },
-  ]
 
   const handleSignOut = async () => {
     await signOut()
     navigate('/sign-in')
   }
 
+  return <LayoutView onSignOut={handleSignOut}>{children}</LayoutView>
+}
+
+const LayoutView = ({
+  children,
+  onSignOut,
+}: LayoutProps & { onSignOut?: () => void }) => {
+
   return (
     <div className="min-h-screen bg-gray-100">
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex">
+            <div className="flex items-center">
+              <Link to="/" className="pr-4 text-sm font-semibold text-gray-900">
+                Easy Invoice
+              </Link>
               {navigation.map((item) => (
                 <Link
                   key={item.name}
@@ -40,13 +61,15 @@ const Layout = ({ children }: LayoutProps) => {
                 </Link>
               ))}
             </div>
-            <button
-              onClick={handleSignOut}
-              className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700"
-            >
-              <LogOut className="h-5 w-5 mr-2" />
-              Sign Out
-            </button>
+            {onSignOut && (
+              <button
+                onClick={onSignOut}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700"
+              >
+                <LogOut className="h-5 w-5 mr-2" />
+                Sign Out
+              </button>
+            )}
           </div>
         </div>
       </nav>

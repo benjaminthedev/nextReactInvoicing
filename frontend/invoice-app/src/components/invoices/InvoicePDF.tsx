@@ -1,6 +1,6 @@
-// src/components/invoices/InvoicePDF.tsx
-import { Document, Page, Text, View, StyleSheet, PDFViewer } from '@react-pdf/renderer'
-import { InvoiceFormData } from './types'
+import { Document, Image, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
+import { paymentTermLabel, type InvoiceFormData } from './types'
+import { invoiceSubtotal, invoiceTotal, invoiceVat } from '@/lib/invoice'
 
 const styles = StyleSheet.create({
   page: {
@@ -9,6 +9,16 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  logo: {
+    width: 88,
+    height: 48,
+    objectFit: 'contain',
+  },
+  headerMeta: {
+    alignItems: 'flex-end',
   },
   companyDetails: {
     marginBottom: 30,
@@ -29,27 +39,32 @@ const styles = StyleSheet.create({
     marginTop: 30,
     alignItems: 'flex-end',
   },
-  text: {
-    fontSize: 10,
-    marginBottom: 5,
-  },
   title: {
     fontSize: 20,
     marginBottom: 20,
   },
   bold: {
     fontFamily: 'Helvetica-Bold',
-  }
+  },
 })
+
+const money = (amount: number) => `£${amount.toFixed(2)}`
 
 export const InvoicePDF = ({ data }: { data: InvoiceFormData }) => (
   <Document>
     <Page size="A4" style={styles.page}>
       <View style={styles.header}>
-        <Text style={styles.title}>INVOICE</Text>
-        <Text>Invoice Number: {data.invoiceNumber}</Text>
-        <Text>Date: {data.issueDate}</Text>
-        <Text>Due Date: {data.dueDate}</Text>
+        <View>
+          {data.companyDetails.logo ? (
+            <Image src={data.companyDetails.logo} style={styles.logo} />
+          ) : null}
+        </View>
+        <View style={styles.headerMeta}>
+          <Text style={styles.title}>INVOICE</Text>
+          <Text>Invoice Number: {data.invoiceNumber}</Text>
+          <Text>Date: {data.issueDate}</Text>
+          <Text>Due Date: {data.dueDate}</Text>
+        </View>
       </View>
 
       <View style={styles.companyDetails}>
@@ -57,12 +72,14 @@ export const InvoicePDF = ({ data }: { data: InvoiceFormData }) => (
         <Text>{data.companyDetails.address}</Text>
         <Text>VAT: {data.companyDetails.vatNumber}</Text>
         <Text>Company No: {data.companyDetails.companyNumber}</Text>
+        {data.companyDetails.email ? <Text>{data.companyDetails.email}</Text> : null}
       </View>
 
       <View style={styles.clientDetails}>
         <Text style={styles.bold}>Bill To:</Text>
         <Text>{data.clientName}</Text>
-        {data.clientVatNumber && <Text>VAT: {data.clientVatNumber}</Text>}
+        <Text>{data.clientEmail}</Text>
+        {data.clientVatNumber ? <Text>VAT: {data.clientVatNumber}</Text> : null}
       </View>
 
       <View style={styles.items}>
@@ -77,29 +94,30 @@ export const InvoicePDF = ({ data }: { data: InvoiceFormData }) => (
           <View key={index} style={styles.item}>
             <Text style={{ flex: 4 }}>{item.description}</Text>
             <Text style={{ flex: 1 }}>{item.quantity}</Text>
-            <Text style={{ flex: 1 }}>£{item.price.toFixed(2)}</Text>
-            <Text style={{ flex: 1 }}>{item.vatRate}%</Text>
-            <Text style={{ flex: 1 }}>£{(item.quantity * item.price).toFixed(2)}</Text>
+            <Text style={{ flex: 1 }}>{money(item.price || 0)}</Text>
+            <Text style={{ flex: 1 }}>{data.includeVat ? `${item.vatRate}%` : '—'}</Text>
+            <Text style={{ flex: 1 }}>{money((item.quantity || 0) * (item.price || 0))}</Text>
           </View>
         ))}
       </View>
 
       <View style={styles.totals}>
-        <Text>Subtotal: £{data.items.reduce((sum, item) => sum + (item.quantity * item.price), 0).toFixed(2)}</Text>
-        {data.includeVat && (
-          <Text>VAT: £{data.items.reduce((sum, item) => sum + (item.quantity * item.price * (item.vatRate / 100)), 0).toFixed(2)}</Text>
-        )}
-        <Text style={styles.bold}>Total: £{data.items.reduce((sum, item) => {
-          const itemTotal = item.quantity * item.price
-          const vat = data.includeVat ? itemTotal * (item.vatRate / 100) : 0
-          return sum + itemTotal + vat
-        }, 0).toFixed(2)}</Text>
+        <Text>Subtotal: {money(invoiceSubtotal(data))}</Text>
+        {data.includeVat && <Text>VAT: {money(invoiceVat(data))}</Text>}
+        <Text style={styles.bold}>Total: {money(invoiceTotal(data))}</Text>
       </View>
 
+      {data.notes ? (
+        <View style={{ marginTop: 30 }}>
+          <Text style={styles.bold}>Notes</Text>
+          <Text>{data.notes}</Text>
+        </View>
+      ) : null}
+
       <View style={{ marginTop: 40 }}>
-        <Text style={styles.bold}>Payment Details:</Text>
+        <Text style={styles.bold}>Payment Details</Text>
         <Text>{data.bankDetails}</Text>
-        <Text>Payment Terms: {data.paymentTerms}</Text>
+        <Text>Payment Terms: {paymentTermLabel(data.paymentTerms)}</Text>
       </View>
     </Page>
   </Document>

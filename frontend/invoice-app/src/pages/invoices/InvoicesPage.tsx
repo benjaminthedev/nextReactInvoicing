@@ -1,93 +1,105 @@
+import { useMemo, useState } from 'react'
+import { Download, Eye } from 'lucide-react'
 import { NewInvoiceDialog } from '@/components/invoices/NewInvoiceDialog'
-import { Plus, Search, Download } from 'lucide-react'
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { InvoicePdfDownload, InvoicePreviewDialog } from '@/components/invoices/InvoicePreviewDialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import type { Invoice, InvoiceStatus } from '@/components/invoices/types'
+import { useAppStore } from '@/lib/store'
+import { displayStatus, formatGBP, invoiceTotal, statusClass } from '@/lib/invoice'
 
-type Invoice = {
-  id: string
-  client: string
-  amount: string
-  date: string
-  dueDate: string
-  status: 'Paid' | 'Pending' | 'Overdue'
+type StatusFilter = 'all' | InvoiceStatus
+
+function matchesSearch(invoice: Invoice, search: string) {
+  const haystack = [
+    invoice.invoiceNumber,
+    invoice.clientName,
+    invoice.clientEmail,
+  ].join(' ').toLowerCase()
+  return haystack.includes(search.trim().toLowerCase())
+}
+
+function csvCell(value: string) {
+  if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`
+  return value
+}
+
+function exportInvoices(invoices: Invoice[]) {
+  const header = ['Invoice', 'Client', 'Email', 'Amount', 'Issue date', 'Due date', 'Status']
+  const rows = invoices.map((invoice) => [
+    invoice.invoiceNumber,
+    invoice.clientName,
+    invoice.clientEmail,
+    invoiceTotal(invoice).toFixed(2),
+    invoice.issueDate,
+    invoice.dueDate,
+    displayStatus(invoice),
+  ].map((value) => csvCell(String(value))).join(','))
+  const csv = [header.join(','), ...rows].join('\n')
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'invoices.csv'
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 const InvoicesPage = () => {
-  // Sample data
-  const invoices: Invoice[] = [
-    { 
-      id: 'INV-001', 
-      client: 'Acme Corp', 
-      amount: '£1,200', 
-      date: '2024-12-01', 
-      dueDate: '2024-12-31',
-      status: 'Paid' 
-    },
-    { 
-      id: 'INV-002', 
-      client: 'Ben Corp', 
-      amount: '£154,200', 
-      date: '2024-12-01', 
-      dueDate: '2024-12-31',
-      status: 'Pending' 
-    },
-    { 
-      id: 'INV-003', 
-      client: 'Evil Corp', 
-      amount: '£13,200', 
-      date: '2024-12-01', 
-      dueDate: '2024-12-31',
-      status: 'Overdue' 
-    },
-  ]
+  const { invoices, setInvoicePaid } = useAppStore()
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [preview, setPreview] = useState<Invoice | null>(null)
 
-  const getStatusColor = (status: Invoice['status']) => {
-    switch (status) {
-      case 'Paid':
-        return 'bg-green-100 text-green-800'
-      case 'Pending':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'Overdue':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
+  const visibleInvoices = useMemo(() => {
+    return invoices.filter((invoice) => {
+      const status = displayStatus(invoice)
+      const statusMatches = statusFilter === 'all' || status === statusFilter
+      return statusMatches && matchesSearch(invoice, search)
+    })
+  }, [invoices, search, statusFilter])
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Invoices</h1>
-          <NewInvoiceDialog />
+        <NewInvoiceDialog />
       </div>
 
       <div className="flex justify-between items-center gap-4">
         <div className="flex gap-4 flex-1">
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
             <Input
               placeholder="Search invoices..."
-              className="pl-8"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              aria-label="Search invoices"
             />
           </div>
-          
-          <Select defaultValue="all">
-            <SelectTrigger className="w-[180px]">
+
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+          >
+            <SelectTrigger className="w-[180px]" aria-label="Filter by status">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="overdue">Overdue</SelectItem>
+              <SelectItem value="Paid">Paid</SelectItem>
+              <SelectItem value="Pending">Pending</SelectItem>
+              <SelectItem value="Overdue">Overdue</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        <Button variant="outline">
+        <Button
+          variant="outline"
+          onClick={() => exportInvoices(visibleInvoices)}
+          disabled={visibleInvoices.length === 0}
+        >
           <Download className="mr-2 h-4 w-4" /> Export
         </Button>
       </div>
@@ -97,36 +109,76 @@ const InvoicesPage = () => {
           <CardTitle>Invoice List</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invoices.map((invoice) => (
-                <TableRow key={invoice.id} className="cursor-pointer">
-                  <TableCell className="font-medium">{invoice.id}</TableCell>
-                  <TableCell>{invoice.client}</TableCell>
-                  <TableCell>{invoice.amount}</TableCell>
-                  <TableCell>{invoice.date}</TableCell>
-                  <TableCell>{invoice.dueDate}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(invoice.status)}`}>
-                      {invoice.status}
-                    </span>
-                  </TableCell>
+          {invoices.length === 0 ? (
+            <p className="text-sm text-gray-500">No invoices yet. Create one to see it here.</p>
+          ) : visibleInvoices.length === 0 ? (
+            <p className="text-sm text-gray-500">No invoices match your search.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Due Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {visibleInvoices.map((invoice) => {
+                  const status = displayStatus(invoice)
+                  return (
+                    <TableRow key={invoice.id}>
+                      <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                      <TableCell>{invoice.clientName}</TableCell>
+                      <TableCell>{formatGBP(invoiceTotal(invoice))}</TableCell>
+                      <TableCell>{invoice.issueDate}</TableCell>
+                      <TableCell>{invoice.dueDate}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs ${statusClass(status)}`}>
+                          {status}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPreview(invoice)}
+                          >
+                            <Eye className="h-4 w-4" />
+                            Preview
+                          </Button>
+                          <InvoicePdfDownload data={invoice} />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setInvoicePaid(invoice.id, status !== 'Paid')}
+                          >
+                            {status === 'Paid' ? 'Mark unpaid' : 'Mark paid'}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      <InvoicePreviewDialog
+        data={preview}
+        open={preview !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreview(null)
+        }}
+      />
     </div>
   )
 }
