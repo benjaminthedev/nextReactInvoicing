@@ -1,88 +1,74 @@
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { z } from "zod"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent } from "@/components/ui/card"
-
-const customerSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  vatNumber: z.string().optional(),
-  phone: z.string().optional(),
-  address: z.object({
-    street: z.string().optional(),
-    city: z.string().optional(),
-    postcode: z.string().optional(),
-    country: z.string().default("United Kingdom")
-  }),
-  notes: z.string().optional()
-})
-
-type CustomerFormData = z.infer<typeof customerSchema>
+import { useState, type ReactNode } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent } from '@/components/ui/card'
+import { customerSchema, emptyCustomer, type Customer, type CustomerFormData } from './types'
 
 interface CustomerFormDialogProps {
-  customer?: CustomerFormData & { _id?: string }
+  customer?: Customer
   onSubmit: (data: CustomerFormData) => void
-  trigger?: React.ReactNode
+  trigger: ReactNode
 }
 
 export function CustomerFormDialog({ customer, onSubmit, trigger }: CustomerFormDialogProps) {
+  const [open, setOpen] = useState(false)
   const form = useForm<CustomerFormData>({
     resolver: zodResolver(customerSchema),
-    defaultValues: customer || {
-      name: "",
-      email: "",
-      vatNumber: "",
-      phone: "",
-      address: {
-        street: "",
-        city: "",
-        postcode: "",
-        country: "United Kingdom"
-      },
-      notes: ""
-    }
+    defaultValues: customer ?? emptyCustomer,
   })
 
-  const { register, handleSubmit, formState: { errors } } = form
+  const { register, handleSubmit, reset, formState: { errors } } = form
+
+  const submit = (data: CustomerFormData) => {
+    onSubmit(data)
+    setOpen(false)
+    if (!customer) reset(emptyCustomer)
+  }
 
   return (
-    <Dialog>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (next) reset(customer ?? emptyCustomer)
+      }}
+    >
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl bg-white">
         <DialogHeader>
-          <DialogTitle>{customer ? "Edit Customer" : "Add Customer"}</DialogTitle>
+          <DialogTitle>{customer ? 'Edit Customer' : 'Add Customer'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(submit)} className="space-y-6">
           <Card>
             <CardContent className="pt-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Name</Label>
-                  <Input {...register("name")} />
+                  <Input {...register('name')} />
                   {errors.name && (
                     <p className="text-sm text-red-500">{errors.name.message}</p>
                   )}
                 </div>
                 <div className="space-y-2">
                   <Label>Email</Label>
-                  <Input {...register("email")} type="email" />
+                  <Input {...register('email')} type="email" />
                   {errors.email && (
                     <p className="text-sm text-red-500">{errors.email.message}</p>
                   )}
                 </div>
                 <div className="space-y-2">
                   <Label>VAT Number</Label>
-                  <Input {...register("vatNumber")} />
+                  <Input {...register('vatNumber')} />
                 </div>
                 <div className="space-y-2">
                   <Label>Phone</Label>
-                  <Input {...register("phone")} />
+                  <Input {...register('phone')} />
                 </div>
               </div>
             </CardContent>
@@ -94,15 +80,15 @@ export function CustomerFormDialog({ customer, onSubmit, trigger }: CustomerForm
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2 col-span-2">
                   <Label>Street</Label>
-                  <Input {...register("address.street")} />
+                  <Input {...register('address.street')} />
                 </div>
                 <div className="space-y-2">
                   <Label>City</Label>
-                  <Input {...register("address.city")} />
+                  <Input {...register('address.city')} />
                 </div>
                 <div className="space-y-2">
                   <Label>Postcode</Label>
-                  <Input {...register("address.postcode")} />
+                  <Input {...register('address.postcode')} />
                 </div>
               </div>
             </CardContent>
@@ -110,15 +96,15 @@ export function CustomerFormDialog({ customer, onSubmit, trigger }: CustomerForm
 
           <div className="space-y-2">
             <Label>Notes</Label>
-            <Input {...register("notes")} />
+            <Input {...register('notes')} />
           </div>
 
           <div className="flex justify-end space-x-2">
-            <DialogTrigger asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogTrigger>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
             <Button type="submit">
-              {customer ? "Update Customer" : "Add Customer"}
+              {customer ? 'Update Customer' : 'Add Customer'}
             </Button>
           </div>
         </form>
